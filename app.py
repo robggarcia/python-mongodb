@@ -1,4 +1,4 @@
-from flask import Flask, redirect, url_for, jsonify
+from flask import Flask, redirect, url_for, jsonify, request
 from pymongo import MongoClient
 from flask_cors import CORS, cross_origin
 import json
@@ -56,6 +56,32 @@ def getbooks():
     books_json = MongoJSONEncoder().encode(list(books))
     books_obj = json.loads(books_json)
     return books_obj
+
+
+@app.route("/books", methods=['POST'])
+def create_book():
+    # new_book = json.loads(request.data)
+    new_book = request.get_json()
+    # print(type(new_book))
+    response = books_col.insert_one(new_book)
+    print(str(response.inserted_id))
+
+    if response.inserted_id != None:
+        new_item = books_col.find({"_id": ObjectId(response.inserted_id)})
+        books_json = MongoJSONEncoder().encode(list(new_item))
+        books_obj = json.loads(books_json)
+        return books_obj
+    else:
+        return ({"success": False, "message": "Unable to create book"})
+
+    # # Prepare the response
+    # if isinstance(response, list):
+    #     # Return list of Id of the newly created item
+    #     return jsonify([str(v) for v in response]), 201
+    # else:
+    #     # Return Id of the newly created item
+    #     return jsonify(str(response)), 201
+    # # return jsonify(str(response))
 
 
 @app.route("/members")
