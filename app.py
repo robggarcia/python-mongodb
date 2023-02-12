@@ -84,6 +84,20 @@ def create_book():
     # # return jsonify(str(response))
 
 
+@app.route("/books/<book_id>", methods=["DELETE"])
+def remove_book(book_id):
+    print(f"Delete book: {book_id}")
+    try:
+        delete_book = books_col.delete_one({"_id": ObjectId(book_id)})
+        print(delete_book.deleted_count)
+        if delete_book.deleted_count > 0:
+            return {"success": True, "message": "Book successfully deleted"}
+        else:
+            return {"success": False, "message": "Unable to delete book"}, 404
+    except:
+        return {"success": False, "message": "Invalid book id"}, 500
+
+
 @app.route("/members")
 def members():
     return {"members": ["Member1", "Member2", "Member3"]}
