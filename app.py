@@ -1,20 +1,22 @@
-from flask import Flask, redirect, url_for, jsonify, request
-from pymongo import MongoClient
+from flask import Flask, redirect, url_for, request, session
 from flask_cors import CORS, cross_origin
 import json
 from bson import ObjectId
 from typing import Any
+import bcrypt
+
 
 from db import db
 
-MONGODB_URI = 'mongodb+srv://yoshi:test123@cluster0.tvnuyyw.mongodb.net/?retryWrites=true&w=majority'
 
 app = Flask(__name__)
+app.secret_key = "poptarts"
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
 names_col = db.get_collection('names_col')
 books_col = db.get_collection("books")
+users_col = db.get_collection("users")
 
 # create a bson encoder to handle Mongo Cursors
 
@@ -118,6 +120,66 @@ def update_book(book_id):
 @app.route("/members")
 def members():
     return {"members": ["Member1", "Member2", "Member3"]}
+
+
+@app.route("/user/register", methods=["POST"])
+def register():
+    message = ''
+    if "email" in session:
+        # return redirect(url_for("logged_in"))
+        return "User already logged in"
+    if request.method == "POST":
+        user = request.get_json()["username"]
+        email = request.get_json()["email"]
+        password = request.get_json()["password"]
+
+        user_found = users_col.find_one({"username": user})
+        email_found = users_col.find_one({"email": email})
+        if user_found:
+            message = 'There already is a user by that username'
+            return {"success": True, "message": message}
+        if email_found:
+            message = 'This email already exists in database'
+            return {"success": False, "message": message}
+        else:
+            hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+            user_input = {'username': user, 'email': email, 'password': hashed}
+            users_col.insert_one(user_input)
+
+            user_data = users_col.find_one({"email": email})
+            new_email = user_data['email']
+
+            return {"success": True, "message": f"New User created with email: {new_email}"}
+    return "User Register route working"
+
+
+@app.route("/user/login", methods=["POST"])
+def login():
+    messsage = 'Please login to your account'
+    if "email" in session:
+        # return redirect(url_for("logged_in"))
+        return "User already logged in"
+    if request.method == "POST":
+        email = request.get_json()["email"]
+        password = request.get_json()["password"]
+
+        email_found = users_col.find_one({"email": email})
+        if email_found:
+            email_val = email_found["email"]
+            passwordcheck = email_found["password"]
+
+            if bcrypt.checkpw(password.encode('utf-8'), passwordcheck):
+                session["email"] = email_val
+                return {"success": True, "message": f"User logged in with email: {email_val}"}
+            else:
+                if "email" in session:
+                    return "already logged in"
+                message = 'Wrong password'
+                return {"success": False, "message": message}
+        else:
+            message = 'Email not found'
+            return {"success": False, "message": message}
+    return {"success": False, "message": message}
 
 
 if __name__ == "__main__":
