@@ -98,6 +98,23 @@ def remove_book(book_id):
         return {"success": False, "message": "Invalid book id"}, 500
 
 
+@app.route("/books/<book_id>", methods=['PATCH'])
+def update_book(book_id):
+    print(f"Update Book: {book_id}")
+    to_update = request.get_json()
+    print(to_update)
+    try:
+        updated = books_col.update_one(
+            {"_id": ObjectId(book_id)}, {"$set": to_update})
+        print(updated.modified_count)
+        if updated.modified_count > 0:
+            return {"success": True, "message": "Book successfully updated"}
+        else:
+            return {"success": False, "message": "Unable to update book"}, 404
+    except:
+        return {"success": False, "message": "Invalid book id"}, 500
+
+
 @app.route("/members")
 def members():
     return {"members": ["Member1", "Member2", "Member3"]}
