@@ -1,3 +1,5 @@
+from db import db
+
 book_data = [
     {
         "title": 'The Way of Kings',
@@ -63,3 +65,7 @@ book_data = [
         ]
     }
 ]
+
+db.drop_collection("books")
+books = db.get_collection("books")
+books.insert_many(book_data)
