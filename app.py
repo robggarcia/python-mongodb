@@ -4,13 +4,16 @@ import json
 from bson import ObjectId
 from typing import Any
 import bcrypt
-
+import os
+import jwt
+import datetime
 
 from db import db
 
 
 app = Flask(__name__)
-app.secret_key = "poptarts"
+app.secret_key = os.environ['SECRET_KEY']
+print(f"The secret key is: {app.secret_key}")
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
@@ -125,9 +128,9 @@ def members():
 @app.route("/user/register", methods=["POST"])
 def register():
     message = ''
-    if "email" in session:
-        # return redirect(url_for("logged_in"))
-        return "User already logged in"
+    # if "email" in session:
+    #     # return redirect(url_for("logged_in"))
+    #     return "User already logged in"
     if request.method == "POST":
         user = request.get_json()["username"]
         email = request.get_json()["email"]
@@ -167,10 +170,18 @@ def login():
         if email_found:
             email_val = email_found["email"]
             passwordcheck = email_found["password"]
+            id = email_found["_id"]
+            username = email_found["username"]
+            secret_key = app.config['SECRET_KEY']
+            print(f"user Id:  {id}")
 
             if bcrypt.checkpw(password.encode('utf-8'), passwordcheck):
                 session["email"] = email_val
-                return {"success": True, "message": f"User logged in with email: {email_val}"}
+                # ***
+                # token = jwt.encode({'public_id' : user.public_id, 'exp' : datetime.datetime.utcnow() + datetime.timedelta(minutes=45)}, app.config['SECRET_KEY'], "HS256")
+                token = jwt.encode(
+                    {"email": email_val, "username": username}, secret_key, algorithm="HS256")
+                return {"success": True, "message": f"User logged in with email: {email_val}", "token": token}
             else:
                 if "email" in session:
                     return "already logged in"
@@ -180,6 +191,15 @@ def login():
             message = 'Email not found'
             return {"success": False, "message": message}
     return {"success": False, "message": message}
+
+
+@app.route("/user/logout", methods=["POST"])
+def logout():
+    if "email" in session:
+        session.pop("email", None)
+        return {"success": True, "message": "Successfully logged out"}
+    else:
+        return {"success": False, "message": "No user logged in"}
 
 
 if __name__ == "__main__":
